@@ -24,8 +24,9 @@ export function updatePlayer(id, changes) {
 }
 
 export function deletePlayer(id) {
-  const players = loadPlayers().filter(p => p.id !== id);
-  savePlayers(players);
+  const players = loadPlayers();
+  if (!players.some(p => p.id === id)) throw new Error(`Player ${id} not found`);
+  savePlayers(players.filter(p => p.id !== id));
 }
 
 export function setPresent(id, isPresent) {
