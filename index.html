@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>羽球臨打配對</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- TOP NAV -->
+  <header class="topbar">
+    <div class="topbar__logo">🏸 臨打配對</div>
+    <div class="topbar__stats">
+      <span class="stat-pill">出席 <strong id="stat-present">0</strong> 人</span>
+      <span class="stat-pill">場地
+        <button class="court-dec" id="court-dec">−</button>
+        <strong id="stat-courts">2</strong>
+        <button class="court-inc" id="court-inc">+</button>
+        片
+      </span>
+      <span class="stat-pill">等待 <strong id="stat-waiting">0</strong> 人</span>
+    </div>
+    <div class="topbar__actions">
+      <button class="btn btn--secondary" id="btn-manage">球員管理</button>
+      <button class="btn btn--primary" id="btn-match">▶ 自動配對</button>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="dashboard">
+    <section class="section">
+      <h2 class="section__title">場地狀況</h2>
+      <div class="courts-grid" id="courts-grid"></div>
+    </section>
+    <section class="section">
+      <h2 class="section__title">等待區</h2>
+      <div class="waiting-list" id="waiting-list"></div>
+    </section>
+  </main>
+
+  <!-- 球員管理 Modal -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" id="modal-players">
+      <div class="modal__header">
+        <h3>球員管理</h3>
+        <button class="modal__close" id="modal-close">✕</button>
+      </div>
+      <div class="modal__body">
+        <form class="add-player-form" id="add-player-form">
+          <input type="text" class="input" id="input-name" placeholder="球員姓名" required>
+          <input type="number" class="input input--sm" id="input-level" placeholder="等級 1-20" min="1" max="20" required>
+          <button type="submit" class="btn btn--primary">新增</button>
+        </form>
+        <div class="player-list" id="player-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 完場 Modal -->
+  <div class="modal-overlay hidden" id="result-overlay">
+    <div class="modal modal--sm" id="modal-result">
+      <div class="modal__header">
+        <h3>記錄結果</h3>
+      </div>
+      <div class="modal__body">
+        <p class="result-prompt" id="result-prompt">哪隊獲勝？</p>
+        <div class="result-buttons">
+          <button class="btn btn--team-blue" id="result-team1">藍隊獲勝</button>
+          <button class="btn btn--team-green" id="result-team2">綠隊獲勝</button>
+          <button class="btn btn--secondary" id="result-draw">平手</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/ui.js"></script>
+</body>
+</html>
