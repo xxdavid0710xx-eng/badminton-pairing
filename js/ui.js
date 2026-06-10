@@ -2,6 +2,7 @@
 import { getAllPlayers, addPlayer, deletePlayer, setPresent, markLeave, updatePlayer } from './players.js';
 import { buildWaitingQueue } from './queue.js';
 import { findBestMatch } from './matching.js';
+import { loadGames } from './storage.js';
 import { getState, setCourtCount, startGame, endGame, getOnCourtIds, getEmptyCourts } from './game.js';
 
 // ── Helpers ──────────────────────────────────
@@ -68,6 +69,11 @@ function renderCourts() {
       const avg2 = ((t2[0].skillLevel + t2[1].skillLevel) / 2).toFixed(1);
       const balanced = Math.abs(avg1 - avg2) <= 1;
 
+      // Use the game's actual start time for the timer, so it survives re-renders
+      const games = loadGames();
+      const game = games.find(g => g.id === court.gameId);
+      const startMs = game ? new Date(game.startTime).getTime() : Date.now();
+
       const pChip = p => `<span class="player-chip">
         <span class="player-chip__name">${p.name}</span>
         <span class="player-chip__lvl player-chip__lvl--${levelClass(p.skillLevel)}">${p.skillLevel}</span>
@@ -78,7 +84,7 @@ function renderCourts() {
       card.innerHTML = `
         <div class="court-card__header">
           <span class="court-card__label">場地 ${i}</span>
-          <span class="court-card__timer" data-start="${Date.now()}">00:00</span>
+          <span class="court-card__timer" data-start="${startMs}">00:00</span>
         </div>
         <div class="teams">
           <div class="team team--blue">${t1.map(pChip).join('')}</div>
