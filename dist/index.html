@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>羽球臨打配對</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏸</text></svg>">
+  <style>
+:root {
+  --bg-base:    #0f172a;
+  --bg-card:    #1e293b;
+  --bg-deep:    #111827;
+  --border:     #334155;
+  --border-light: #475569;
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --accent:     #38bdf8;
+  --team-blue:  #3b82f6;
+  --team-blue-bg: #1e3a5f;
+  --team-green: #10b981;
+  --team-green-bg: #064e3b;
+  --warning:    #f59e0b;
+  --warning-bg: #1c1a0f;
+  --danger:     #ef4444;
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --shadow:     0 4px 24px rgba(0,0,0,0.4);
+  --transition: 0.18s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── TOPBAR ─────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.topbar__logo {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  flex: 1;
+  min-width: 120px;
+}
+.topbar__stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.topbar__actions {
+  display: flex;
+  gap: 8px;
+}
+.stat-pill {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 13px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-pill strong { color: var(--text-primary); }
+.court-dec, .court-inc {
+  background: var(--border);
+  border: none;
+  color: var(--text-primary);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+.court-dec:hover, .court-inc:hover { background: var(--border-light); }
+
+/* ── BUTTONS ─────────────────────────────────── */
+.btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition), transform var(--transition);
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn--primary  { background: var(--accent); color: #0f172a; }
+.btn--secondary { background: var(--border); color: var(--text-primary); }
+.btn--danger   { background: #7f1d1d; color: #fca5a5; }
+.btn--team-blue  { background: var(--team-blue-bg); color: #93c5fd; border: 1px solid var(--team-blue); flex: 1; padding: 10px; }
+.btn--team-green { background: var(--team-green-bg); color: #6ee7b7; border: 1px solid var(--team-green); flex: 1; padding: 10px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── DASHBOARD ───────────────────────────────── */
+.dashboard { padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 1400px; margin: 0 auto; }
+.section__title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── COURT CARDS ─────────────────────────────── */
+.courts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.court-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.court-card--active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px #38bdf822, var(--shadow);
+}
+.court-card--empty {
+  border-style: dashed;
+  opacity: 0.6;
+}
+.court-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.court-card__label { font-size: 14px; font-weight: 700; color: var(--text-secondary); }
+.court-card__timer { font-size: 12px; color: var(--text-muted); background: var(--bg-deep); border-radius: 4px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+.court-card__empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px 0; }
+
+.teams { display: flex; flex-direction: column; gap: 6px; }
+.team {
+  background: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.team--blue  { border-left: 3px solid var(--team-blue); }
+.team--green { border-left: 3px solid var(--team-green); }
+.vs-divider  { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 800; letter-spacing: 0.1em; }
+
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 3px 8px 3px 6px;
+  font-size: 13px;
+}
+.player-chip__name { color: var(--text-primary); }
+.player-chip__lvl {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 6px;
+  background: var(--border);
+  color: var(--text-secondary);
+}
+.player-chip__lvl--high { background: #1d4ed8; color: #93c5fd; }
+.player-chip__lvl--mid  { background: #065f46; color: #6ee7b7; }
+.player-chip__lvl--low  { background: #374151; color: #9ca3af; }
+
+.balance-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.balance-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.balance-fill { height: 100%; background: linear-gradient(90deg, var(--team-blue), var(--team-green)); border-radius: 2px; transition: width 0.4s ease; }
+.balance-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+.btn-done {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--team-green-bg);
+  color: #34d399;
+  border: 1px solid var(--team-green);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.btn-done:hover { background: #065f46cc; }
+
+/* ── WAITING LIST ────────────────────────────── */
+.waiting-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.waiting-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 78px;
+  transition: border-color var(--transition);
+}
+.waiting-card--next {
+  border-color: var(--warning);
+  background: var(--warning-bg);
+}
+.waiting-card__badge {
+  font-size: 9px;
+  background: var(--warning);
+  color: #000;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-bottom: 2px;
+  letter-spacing: 0.03em;
+}
+.waiting-card__name  { font-size: 14px; font-weight: 700; }
+.waiting-card__level { font-size: 12px; color: var(--text-secondary); }
+.waiting-card__games { font-size: 11px; color: var(--text-muted); }
+
+/* ── MODAL ───────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 16px;
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  animation: slide-up 0.2s ease;
+}
+.modal--sm { max-width: 360px; }
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal__header h3 { font-size: 16px; font-weight: 700; }
+.modal__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+.modal__close:hover { background: var(--border); }
+.modal__body { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── ADD PLAYER FORM ─────────────────────────── */
+.add-player-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+.input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-size: 14px;
+  flex: 1;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.input:focus { border-color: var(--accent); }
+.input--sm { max-width: 90px; flex: none; }
+
+/* ── PLAYER LIST (in modal) ──────────────────── */
+.player-list { display: flex; flex-direction: column; gap: 6px; }
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-deep);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: border-color var(--transition);
+}
+.player-row--present { border-left: 3px solid var(--accent); }
+.player-row__check { cursor: pointer; accent-color: var(--accent); width: 16px; height: 16px; }
+.player-row__name  { flex: 1; font-weight: 600; }
+.player-row__level {
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--border);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.player-row__stats { font-size: 11px; color: var(--text-muted); min-width: 60px; text-align: right; }
+.btn-leave {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.btn-leave:hover { background: #2d220066; }
+.btn-edit, .btn-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.btn-edit:hover   { background: var(--border); }
+.btn-delete:hover { background: #7f1d1d44; }
+
+/* ── RESULT MODAL ────────────────────────────── */
+.result-prompt { font-size: 15px; color: var(--text-secondary); text-align: center; }
+.result-buttons { display: flex; gap: 8px; margin-top: 6px; }
+
+/* ── EMPTY STATE ─────────────────────────────── */
+.empty-state {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px;
+  width: 100%;
+}
+
+/* ── TOAST NOTIFICATION ──────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--shadow);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+  z-index: 999;
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 600px) {
+  .topbar { gap: 8px; }
+  .topbar__logo { font-size: 17px; }
+  .topbar__stats { gap: 5px; }
+  .stat-pill { font-size: 12px; padding: 4px 10px; }
+  .btn { padding: 7px 12px; font-size: 12px; }
+  .courts-grid { grid-template-columns: 1fr; }
+  .modal { max-height: 95vh; }
+  .add-player-form { flex-wrap: wrap; }
+  .input--sm { max-width: 100%; }
+}
+
+/* ── ANIMATION HELPERS ───────────────────────── */
+.waiting-card { animation: pop-in 0.2s ease; }
+@keyframes pop-in {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.court-card--active { animation: card-appear 0.25s ease; }
+@keyframes card-appear {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* ── SCROLLBAR ───────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* ── FOCUS STYLES ────────────────────────────── */
+button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+  </style>
+</head>
+<body>
+  <!-- TOP NAV -->
+  <header class="topbar">
+    <div class="topbar__logo">🏸 臨打配對</div>
+    <div class="topbar__stats">
+      <span class="stat-pill">出席 <strong id="stat-present">0</strong> 人</span>
+      <span class="stat-pill">場地
+        <button class="court-dec" id="court-dec">−</button>
+        <strong id="stat-courts">2</strong>
+        <button class="court-inc" id="court-inc">+</button>
+        片
+      </span>
+      <span class="stat-pill">等待 <strong id="stat-waiting">0</strong> 人</span>
+    </div>
+    <div class="topbar__actions">
+      <button class="btn btn--secondary" id="btn-manage">球員管理</button>
+      <button class="btn btn--primary" id="btn-match">▶ 自動配對</button>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="dashboard">
+    <section class="section">
+      <h2 class="section__title">場地狀況</h2>
+      <div class="courts-grid" id="courts-grid"></div>
+    </section>
+    <section class="section">
+      <h2 class="section__title">等待區</h2>
+      <div class="waiting-list" id="waiting-list"></div>
+    </section>
+  </main>
+
+  <!-- 球員管理 Modal -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" id="modal-players">
+      <div class="modal__header">
+        <h3>球員管理</h3>
+        <button class="modal__close" id="modal-close">✕</button>
+      </div>
+      <div class="modal__body">
+        <form class="add-player-form" id="add-player-form">
+          <input type="text" class="input" id="input-name" placeholder="球員姓名" required>
+          <input type="number" class="input input--sm" id="input-level" placeholder="等級 1-20" min="1" max="20" required>
+          <button type="submit" class="btn btn--primary">新增</button>
+        </form>
+        <div class="player-list" id="player-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 完場 Modal -->
+  <div class="modal-overlay hidden" id="result-overlay">
+    <div class="modal modal--sm" id="modal-result">
+      <div class="modal__header">
+        <h3>記錄結果</h3>
+      </div>
+      <div class="modal__body">
+        <p class="result-prompt" id="result-prompt">哪隊獲勝？</p>
+        <div class="result-buttons">
+          <button class="btn btn--team-blue" id="result-team1">藍隊獲勝</button>
+          <button class="btn btn--team-green" id="result-team2">綠隊獲勝</button>
+          <button class="btn btn--secondary" id="result-draw">平手</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+/* ================================================
+   storage.js — localStorage 讀寫封裝
+   ================================================ */
+var KEYS = { PLAYERS: 'bm_players', GAMES: 'bm_games', STATE: 'bm_state' };
+
+function loadPlayers() {
+  return JSON.parse(localStorage.getItem(KEYS.PLAYERS) || '[]');
+}
+function savePlayers(players) {
+  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+}
+function loadGames() {
+  return JSON.parse(localStorage.getItem(KEYS.GAMES) || '[]');
+}
+function saveGames(games) {
+  localStorage.setItem(KEYS.GAMES, JSON.stringify(games));
+}
+function loadState() {
+  var defaults = { courtCount: 2, courts: {} };
+  return Object.assign({}, defaults, JSON.parse(localStorage.getItem(KEYS.STATE) || '{}'));
+}
+function saveState(state) {
+  localStorage.setItem(KEYS.STATE, JSON.stringify(state));
+}
+
+/* ================================================
+   data.js — 資料初始化、型別工廠
+   ================================================ */
+function createPlayer(name, skillLevel) {
+  return {
+    id: crypto.randomUUID(),
+    name: name,
+    skillLevel: Number(skillLevel),
+    gamesPlayed: 0,
+    wins: 0,
+    losses: 0,
+    isPresent: false,
+    pendingLeave: false,
+    lastGameEndTime: null,
+  };
+}
+
+function createGame(courtId, team1, team2) {
+  return {
+    id: crypto.randomUUID(),
+    courtId: courtId,
+    team1: team1,
+    team2: team2,
+    startTime: new Date().toISOString(),
+    endTime: null,
+    result: null,
+  };
+}
+
+/* ================================================
+   players.js — 球員 CRUD + 出席管理 + 下課
+   ================================================ */
+function getAllPlayers() { return loadPlayers(); }
+
+function addPlayer(name, skillLevel) {
+  var players = loadPlayers();
+  var player = createPlayer(name.trim(), skillLevel);
+  players.push(player);
+  savePlayers(players);
+  return player;
+}
+
+function updatePlayer(id, changes) {
+  var players = loadPlayers();
+  var idx = players.findIndex(function(p) { return p.id === id; });
+  if (idx === -1) throw new Error('Player ' + id + ' not found');
+  players[idx] = Object.assign({}, players[idx], changes);
+  savePlayers(players);
+  return players[idx];
+}
+
+function deletePlayer(id) {
+  var players = loadPlayers();
+  if (!players.some(function(p) { return p.id === id; })) throw new Error('Player ' + id + ' not found');
+  savePlayers(players.filter(function(p) { return p.id !== id; }));
+}
+
+function setPresent(id, isPresent) {
+  return updatePlayer(id, { isPresent: isPresent });
+}
+
+function markLeave(id, onCourtIds) {
+  if (onCourtIds.includes(id)) {
+    return updatePlayer(id, { pendingLeave: true });
+  }
+  return updatePlayer(id, { isPresent: false, pendingLeave: false });
+}
+
+/* ================================================
+   queue.js — 公平輪打排隊邏輯
+   ================================================ */
+function buildWaitingQueue(players, onCourtIds) {
+  return players
+    .filter(function(p) { return p.isPresent && !p.pendingLeave && !onCourtIds.includes(p.id); })
+    .sort(function(a, b) {
+      if (a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+      var tA = a.lastGameEndTime ? new Date(a.lastGameEndTime).getTime() : 0;
+      var tB = b.lastGameEndTime ? new Date(b.lastGameEndTime).getTime() : 0;
+      return tA - tB;
+    });
+}
+
+/* ================================================
+   matching.js — 自動配對演算法 + 勝率修正
+   ================================================ */
+function effectiveLevel(player) {
+  var skillLevel = player.skillLevel, gamesPlayed = player.gamesPlayed, wins = player.wins;
+  if (gamesPlayed < 5) return skillLevel;
+  var winRate = wins / gamesPlayed;
+  var bonus = 0;
+  if (winRate > 0.75) bonus = 1.0;
+  else if (winRate > 0.60) bonus = 0.5;
+  else if (winRate < 0.40) bonus = -0.5;
+  bonus = Math.max(-2, Math.min(2, bonus));
+  return skillLevel + bonus;
+}
+
+function findBestMatch(candidates) {
+  if (candidates.length < 4) return null;
+  var pool = candidates.slice(0, 8);
+  var n = pool.length;
+  var best = null;
+  var bestDiff = Infinity;
+
+  for (var i = 0; i < n - 3; i++) {
+    for (var j = i + 1; j < n - 2; j++) {
+      for (var k = j + 1; k < n - 1; k++) {
+        for (var l = k + 1; l < n; l++) {
+          var four = [pool[i], pool[j], pool[k], pool[l]];
+          var combos = [
+            [[four[0], four[1]], [four[2], four[3]]],
+            [[four[0], four[2]], [four[1], four[3]]],
+            [[four[0], four[3]], [four[1], four[2]]],
+          ];
+          for (var c = 0; c < combos.length; c++) {
+            var t1 = combos[c][0], t2 = combos[c][1];
+            var avg1 = (effectiveLevel(t1[0]) + effectiveLevel(t1[1])) / 2;
+            var avg2 = (effectiveLevel(t2[0]) + effectiveLevel(t2[1])) / 2;
+            var diff = Math.abs(avg1 - avg2);
+            if (diff < bestDiff) {
+              bestDiff = diff;
+              best = { team1: t1, team2: t2, diff: diff };
+            }
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/* ================================================
+   game.js — 場地狀態、開始/結束場次
+   ================================================ */
+function getState() { return loadState(); }
+
+function setCourtCount(n) {
+  var state = loadState();
+  var count = Math.max(1, Math.min(8, n));
+  saveState(Object.assign({}, state, { courtCount: count }));
+  return count;
+}
+
+function startGame(courtId, team1PlayerIds, team2PlayerIds) {
+  var state = loadState();
+  var game = createGame(courtId, team1PlayerIds, team2PlayerIds);
+  var games = loadGames();
+  games.push(game);
+  saveGames(games);
+  var courts = Object.assign({}, state.courts);
+  courts[courtId] = { team1: team1PlayerIds, team2: team2PlayerIds, gameId: game.id };
+  saveState(Object.assign({}, state, { courts: courts }));
+  return game;
+}
+
+function endGame(courtId, result) {
+  var state = loadState();
+  var court = state.courts[courtId];
+  if (!court) throw new Error('Court ' + courtId + ' has no active game');
+
+  var games = loadGames();
+  var gameIdx = games.findIndex(function(g) { return g.id === court.gameId; });
+  if (gameIdx !== -1) {
+    games[gameIdx] = Object.assign({}, games[gameIdx], {
+      endTime: new Date().toISOString(),
+      result: result,
+    });
+    saveGames(games);
+  }
+
+  var endTime = new Date().toISOString();
+  var players = loadPlayers();
+  var allIds = court.team1.concat(court.team2);
+
+  var updated = players.map(function(p) {
+    if (!allIds.includes(p.id)) return p;
+    var inTeam1 = court.team1.includes(p.id);
+    var won  = (result === 'team1' && inTeam1) || (result === 'team2' && !inTeam1);
+    var lost = (result === 'team1' && !inTeam1) || (result === 'team2' && inTeam1);
+    return Object.assign({}, p, {
+      gamesPlayed: p.gamesPlayed + 1,
+      wins:   p.wins   + (won  ? 1 : 0),
+      losses: p.losses + (lost ? 1 : 0),
+      lastGameEndTime: endTime,
+      isPresent:    p.pendingLeave ? false : p.isPresent,
+      pendingLeave: false,
+    });
+  });
+  savePlayers(updated);
+
+  var courts = Object.assign({}, state.courts);
+  delete courts[courtId];
+  saveState(Object.assign({}, state, { courts: courts }));
+}
+
+function getOnCourtIds(state) {
+  return Object.values(state.courts).flatMap(function(c) {
+    return c ? c.team1.concat(c.team2) : [];
+  });
+}
+
+function getEmptyCourts(state) {
+  var ids = [];
+  for (var i = 1; i <= state.courtCount; i++) {
+    if (!state.courts[i]) ids.push(i);
+  }
+  return ids;
+}
+
+/* ================================================
+   ui.js — 所有 DOM 渲染 + 事件綁定
+   ================================================ */
+
+// ── Helpers ──────────────────────────────────
+function levelClass(lvl) {
+  if (lvl >= 14) return 'high';
+  if (lvl >= 7)  return 'mid';
+  return 'low';
+}
+
+function winRate(p) {
+  if (p.gamesPlayed === 0) return '—';
+  return Math.round(p.wins / p.gamesPlayed * 100) + '%';
+}
+
+var toastTimer = null;
+function showToast(msg) {
+  var toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+}
+
+function refresh() {
+  renderStats();
+  renderCourts();
+  renderWaiting();
+  renderPlayerList();
+}
+
+// ── Stats ─────────────────────────────────────
+function renderStats() {
+  var players = getAllPlayers();
+  var state = getState();
+  var onCourtIds = getOnCourtIds(state);
+  var queue = buildWaitingQueue(players, onCourtIds);
+  document.getElementById('stat-present').textContent = players.filter(function(p) { return p.isPresent; }).length;
+  document.getElementById('stat-courts').textContent  = state.courtCount;
+  document.getElementById('stat-waiting').textContent = queue.length;
+}
+
+// ── Courts ────────────────────────────────────
+function renderCourts() {
+  var state = getState();
+  var players = getAllPlayers();
+  var grid = document.getElementById('courts-grid');
+  grid.innerHTML = '';
+
+  for (var i = 1; i <= state.courtCount; i++) {
+    var court = state.courts[i];
+    var card = document.createElement('div');
+
+    if (court) {
+      var getP = function(id) { return players.find(function(p) { return p.id === id; }) || { name: '?', skillLevel: 0 }; };
+      var t1 = court.team1.map(getP);
+      var t2 = court.team2.map(getP);
+      var avg1 = ((t1[0].skillLevel + t1[1].skillLevel) / 2).toFixed(1);
+      var avg2 = ((t2[0].skillLevel + t2[1].skillLevel) / 2).toFixed(1);
+      var balanced = Math.abs(avg1 - avg2) <= 1;
+
+      var games = loadGames();
+      var game = games.find(function(g) { return g.id === court.gameId; });
+      var startMs = game ? new Date(game.startTime).getTime() : Date.now();
+
+      var pChip = function(p) { return '<span class="player-chip">' +
+        '<span class="player-chip__name">' + p.name + '</span>' +
+        '<span class="player-chip__lvl player-chip__lvl--' + levelClass(p.skillLevel) + '">' + p.skillLevel + '</span>' +
+      '</span>'; };
+
+      card.className = 'court-card court-card--active';
+      card.dataset.courtId = i;
+      card.innerHTML =
+        '<div class="court-card__header">' +
+          '<span class="court-card__label">場地 ' + i + '</span>' +
+          '<span class="court-card__timer" data-start="' + startMs + '">00:00</span>' +
+        '</div>' +
+        '<div class="teams">' +
+          '<div class="team team--blue">' + t1.map(pChip).join('') + '</div>' +
+          '<div class="vs-divider">VS</div>' +
+          '<div class="team team--green">' + t2.map(pChip).join('') + '</div>' +
+        '</div>' +
+        '<div class="balance-row">' +
+          '<div class="balance-bar"><div class="balance-fill" style="width:' + (balanced ? 50 : 40) + '%"></div></div>' +
+          '<span class="balance-label">' + avg1 + ' vs ' + avg2 + (balanced ? ' ✓' : '') + '</span>' +
+        '</div>' +
+        '<button class="btn-done" data-court="' + i + '">完場 →</button>';
+    } else {
+      card.className = 'court-card court-card--empty';
+      card.innerHTML =
+        '<div class="court-card__header"><span class="court-card__label">場地 ' + i + '</span></div>' +
+        '<div class="court-card__empty">空場<br><small>按「自動配對」填入球員</small></div>';
+    }
+    grid.appendChild(card);
+  }
+
+  grid.querySelectorAll('.btn-done').forEach(function(btn) {
+    btn.addEventListener('click', function() { openResultModal(Number(btn.dataset.court)); });
+  });
+}
+
+// ── Waiting queue ─────────────────────────────
+function renderWaiting() {
+  var players = getAllPlayers();
+  var state = getState();
+  var onCourtIds = getOnCourtIds(state);
+  var queue = buildWaitingQueue(players, onCourtIds);
+  var list = document.getElementById('waiting-list');
+  list.innerHTML = '';
+
+  if (queue.length === 0) {
+    list.innerHTML = '<div class="empty-state">沒有等待中的球員</div>';
+    return;
+  }
+
+  var emptyCourts = getEmptyCourts(state);
+  var nextCount = emptyCourts.length > 0 ? Math.min(emptyCourts.length * 4, queue.length) : 0;
+
+  queue.forEach(function(p, idx) {
+    var isNext = idx < nextCount;
+    var card = document.createElement('div');
+    card.className = 'waiting-card' + (isNext ? ' waiting-card--next' : '');
+    card.innerHTML =
+      (isNext ? '<div class="waiting-card__badge">下一場</div>' : '') +
+      '<div class="waiting-card__name">' + p.name + '</div>' +
+      '<div class="waiting-card__level">等級 ' + p.skillLevel + '</div>' +
+      '<div class="waiting-card__games">' + p.gamesPlayed + ' 場</div>';
+    list.appendChild(card);
+  });
+}
+
+// ── Player list (in modal) ────────────────────
+function renderPlayerList() {
+  var players = getAllPlayers();
+  var state = getState();
+  var onCourtIds = getOnCourtIds(state);
+  var list = document.getElementById('player-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (players.length === 0) {
+    list.innerHTML = '<div class="empty-state">尚未新增球員</div>';
+    return;
+  }
+
+  players.forEach(function(p) {
+    var onCourt = onCourtIds.includes(p.id);
+    var row = document.createElement('div');
+    row.className = 'player-row' + (p.isPresent ? ' player-row--present' : '');
+    row.innerHTML =
+      '<input type="checkbox" class="player-row__check" data-id="' + p.id + '" ' + (p.isPresent ? 'checked' : '') + ' ' + (onCourt ? 'disabled' : '') + '>' +
+      '<span class="player-row__name">' + p.name + '</span>' +
+      '<span class="player-row__level">' + p.skillLevel + '</span>' +
+      '<span class="player-row__stats">' + p.gamesPlayed + '場 ' + winRate(p) + '</span>' +
+      (p.isPresent && !p.pendingLeave
+        ? '<button class="btn-leave" data-id="' + p.id + '">下課</button>'
+        : p.pendingLeave ? '<span style="font-size:11px;color:#f59e0b">下課中</span>' : '') +
+      '<button class="btn-edit" data-id="' + p.id + '" title="編輯">✏️</button>' +
+      '<button class="btn-delete" data-id="' + p.id + '" title="刪除" ' + (onCourt ? 'disabled' : '') + '>🗑️</button>';
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.player-row__check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      setPresent(cb.dataset.id, cb.checked);
+      refresh();
+    });
+  });
+
+  list.querySelectorAll('.btn-leave').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      markLeave(btn.dataset.id, onCourtIds);
+      refresh();
+      showToast('已標記下課');
+    });
+  });
+
+  list.querySelectorAll('.btn-delete').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (confirm('確定要刪除這位球員？')) {
+        deletePlayer(btn.dataset.id);
+        refresh();
+      }
+    });
+  });
+
+  list.querySelectorAll('.btn-edit').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var p = getAllPlayers().find(function(x) { return x.id === btn.dataset.id; });
+      if (!p) return;
+      var newName = prompt('修改姓名', p.name);
+      if (newName === null) return;
+      var newLvl = prompt('修改等級 (1-20)', p.skillLevel);
+      if (newLvl === null) return;
+      var lvl = Math.max(1, Math.min(20, Number(newLvl)));
+      if (!isNaN(lvl)) {
+        updatePlayer(p.id, { name: newName.trim() || p.name, skillLevel: lvl });
+        refresh();
+      }
+    });
+  });
+}
+
+// ── Modals ────────────────────────────────────
+function openPlayerModal() {
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  renderPlayerList();
+}
+function closePlayerModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+var pendingCourtId = null;
+
+function openResultModal(courtId) {
+  pendingCourtId = courtId;
+  var state = getState();
+  var players = getAllPlayers();
+  var court = state.courts[courtId];
+  if (!court) return;
+  var getP = function(id) { return players.find(function(p) { return p.id === id; }) || { name: '?' }; };
+  var t1names = court.team1.map(function(id) { return getP(id).name; }).join(' & ');
+  var t2names = court.team2.map(function(id) { return getP(id).name; }).join(' & ');
+  document.getElementById('result-prompt').textContent = '場地 ' + courtId + '：哪隊獲勝？';
+  document.getElementById('result-team1').textContent = '藍隊：' + t1names;
+  document.getElementById('result-team2').textContent = '綠隊：' + t2names;
+  document.getElementById('result-overlay').classList.remove('hidden');
+}
+function closeResultModal() {
+  document.getElementById('result-overlay').classList.add('hidden');
+  pendingCourtId = null;
+}
+
+// ── Auto-match ────────────────────────────────
+function handleAutoMatch() {
+  var players = getAllPlayers();
+  var state = getState();
+  var onCourtIds = getOnCourtIds(state);
+  var emptyCourts = getEmptyCourts(state);
+
+  if (emptyCourts.length === 0) {
+    showToast('目前沒有空場地');
+    return;
+  }
+
+  var queue = buildWaitingQueue(players, onCourtIds);
+
+  if (queue.length < 4) {
+    showToast('等待人數不足（需要至少 4 人，目前 ' + queue.length + ' 人）');
+    return;
+  }
+
+  var matched = 0;
+  var usedIds = new Set();
+
+  emptyCourts.forEach(function(courtId) {
+    var available = queue.filter(function(p) { return !usedIds.has(p.id); });
+    if (available.length < 4) return;
+    var match = findBestMatch(available);
+    if (!match) return;
+    var t1ids = match.team1.map(function(p) { return p.id; });
+    var t2ids = match.team2.map(function(p) { return p.id; });
+    startGame(courtId, t1ids, t2ids);
+    t1ids.forEach(function(id) { usedIds.add(id); });
+    t2ids.forEach(function(id) { usedIds.add(id); });
+    matched++;
+  });
+
+  if (matched > 0) {
+    showToast('已配對 ' + matched + ' 場');
+    refresh();
+  } else {
+    showToast('無法配對（人數不足）');
+  }
+}
+
+// ── Timer ─────────────────────────────────────
+function startTimers() {
+  setInterval(function() {
+    document.querySelectorAll('.court-card__timer[data-start]').forEach(function(el) {
+      var startMs = Number(el.dataset.start);
+      var elapsed = Math.floor((Date.now() - startMs) / 1000);
+      var m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      var s = String(elapsed % 60).padStart(2, '0');
+      el.textContent = m + ':' + s;
+    });
+  }, 1000);
+}
+
+// ── Init ──────────────────────────────────────
+function init() {
+  document.getElementById('btn-manage').addEventListener('click', openPlayerModal);
+  document.getElementById('modal-close').addEventListener('click', closePlayerModal);
+  document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closePlayerModal();
+  });
+
+  document.getElementById('add-player-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var name  = document.getElementById('input-name').value.trim();
+    var level = Number(document.getElementById('input-level').value);
+    if (!name || level < 1 || level > 20) return;
+    addPlayer(name, level);
+    document.getElementById('input-name').value  = '';
+    document.getElementById('input-level').value = '';
+    refresh();
+    showToast('已新增球員：' + name);
+  });
+
+  document.getElementById('court-dec').addEventListener('click', function() {
+    var state = getState();
+    setCourtCount(state.courtCount - 1);
+    refresh();
+  });
+  document.getElementById('court-inc').addEventListener('click', function() {
+    var state = getState();
+    setCourtCount(state.courtCount + 1);
+    refresh();
+  });
+
+  document.getElementById('btn-match').addEventListener('click', handleAutoMatch);
+
+  document.getElementById('result-team1').addEventListener('click', function() {
+    if (pendingCourtId === null) return;
+    endGame(pendingCourtId, 'team1');
+    closeResultModal();
+    refresh();
+    showToast('已記錄結果');
+  });
+  document.getElementById('result-team2').addEventListener('click', function() {
+    if (pendingCourtId === null) return;
+    endGame(pendingCourtId, 'team2');
+    closeResultModal();
+    refresh();
+    showToast('已記錄結果');
+  });
+  document.getElementById('result-draw').addEventListener('click', function() {
+    if (pendingCourtId === null) return;
+    endGame(pendingCourtId, 'draw');
+    closeResultModal();
+    refresh();
+    showToast('已記錄平手');
+  });
+  document.getElementById('result-overlay').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeResultModal();
+  });
+
+  refresh();
+  startTimers();
+}
+
+init();
+  </script>
+</body>
+</html>
