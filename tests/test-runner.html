@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Unit Tests</title>
+  <style>
+    body { font-family: monospace; background: #0f172a; color: #e2e8f0; padding: 20px; }
+    .pass { color: #34d399; }
+    .fail { color: #f87171; }
+    pre  { background: #1e293b; padding: 8px; border-radius: 4px; margin: 4px 0; }
+  </style>
+</head>
+<body>
+<h2>🏸 Unit Tests</h2>
+<div id="results"></div>
+<script type="module">
+  const results = document.getElementById('results');
+  let passed = 0, failed = 0;
+
+  function test(name, fn) {
+    try {
+      fn();
+      results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+      passed++;
+    } catch (e) {
+      results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+      failed++;
+    }
+  }
+  function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+  function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+  // QUEUE TESTS (from Task 4)
+  import { buildWaitingQueue } from '../js/queue.js';
+
+  const now = Date.now();
+  const mkP = (id, games, lastEnd, isPresent = true) => ({
+    id, name: id, skillLevel: 5, gamesPlayed: games,
+    isPresent, pendingLeave: false,
+    lastGameEndTime: lastEnd ? new Date(lastEnd).toISOString() : null,
+    wins: 0, losses: 0,
+  });
+
+  test('queue: 場數少的排前面', () => {
+    const players = [mkP('B', 3, now - 1000), mkP('A', 1, now - 2000)];
+    const q = buildWaitingQueue(players, []);
+    assertEqual(q[0].id, 'A');
+  });
+
+  test('queue: 場數相同時等待久的排前面', () => {
+    const players = [mkP('B', 2, now - 1000), mkP('A', 2, now - 5000)];
+    const q = buildWaitingQueue(players, []);
+    assertEqual(q[0].id, 'A');
+  });
+
+  test('queue: 從未打過的場數為 0，lastGameEndTime=null 排最前', () => {
+    const players = [mkP('B', 1, now - 1000), mkP('A', 0, null)];
+    const q = buildWaitingQueue(players, []);
+    assertEqual(q[0].id, 'A');
+  });
+
+  test('queue: 在場上的人不出現在等待區', () => {
+    const players = [mkP('A', 0, null), mkP('B', 0, null)];
+    const q = buildWaitingQueue(players, ['A']);
+    assertEqual(q.length, 1);
+    assertEqual(q[0].id, 'B');
+  });
+
+  test('queue: isPresent=false 的人不出現', () => {
+    const players = [mkP('A', 0, null, false), mkP('B', 0, null, true)];
+    const q = buildWaitingQueue(players, []);
+    assertEqual(q.length, 1);
+  });
+
+  test('queue: pendingLeave 的人不出現', () => {
+    const players = [
+      { ...mkP('A', 0, null), pendingLeave: true },
+      mkP('B', 0, null),
+    ];
+    const q = buildWaitingQueue(players, []);
+    assertEqual(q.length, 1);
+    assertEqual(q[0].id, 'B');
+  });
+
+  // MATCHING TESTS (from Task 5)
+  import { effectiveLevel, findBestMatch } from '../js/matching.js';
+
+  const mkPlayer = (id, skill, games = 0, wins = 0) => ({
+    id, name: id, skillLevel: skill, gamesPlayed: games, wins,
+    losses: games - wins, isPresent: true, pendingLeave: false, lastGameEndTime: null,
+  });
+
+  test('effectiveLevel: 場數不足 5 場無修正', () => {
+    const p = mkPlayer('A', 10, 4, 4);
+    assertEqual(effectiveLevel(p), 10);
+  });
+
+  test('effectiveLevel: 勝率 > 75% 加 1', () => {
+    const p = mkPlayer('A', 10, 10, 9);
+    assertEqual(effectiveLevel(p), 11);
+  });
+
+  test('effectiveLevel: 勝率 60-75% 加 0.5', () => {
+    const p = mkPlayer('A', 10, 10, 7);
+    assertEqual(effectiveLevel(p), 10.5);
+  });
+
+  test('effectiveLevel: 勝率 < 40% 減 0.5', () => {
+    const p = mkPlayer('A', 10, 10, 3);
+    assertEqual(effectiveLevel(p), 9.5);
+  });
+
+  test('findBestMatch: 回傳最均衡組合', () => {
+    const players = [
+      mkPlayer('A', 20), mkPlayer('B', 15),
+      mkPlayer('C', 10), mkPlayer('D', 5),
+    ];
+    const match = findBestMatch(players);
+    assert(match !== null, 'match should not be null');
+    const avg1 = (match.team1[0].skillLevel + match.team1[1].skillLevel) / 2;
+    const avg2 = (match.team2[0].skillLevel + match.team2[1].skillLevel) / 2;
+    assertEqual(avg1, avg2);
+  });
+
+  test('findBestMatch: 人數不足回傳 null', () => {
+    const players = [mkPlayer('A', 10), mkPlayer('B', 8), mkPlayer('C', 6)];
+    assert(findBestMatch(players) === null, 'should return null');
+  });
+
+  results.innerHTML += `<p style="margin-top:16px;font-weight:bold">${passed} passed, ${failed} failed</p>`;
+</script>
+</body>
+</html>
