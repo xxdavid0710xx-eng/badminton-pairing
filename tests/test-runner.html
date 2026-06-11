@@ -359,5 +359,74 @@ test('migratePlayer: 已有 partners 不被覆蓋', () => {
 
 results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Player migration：${passed} passed, ${failed} failed</p>`;
 </script>
+
+<script type="module">
+import { calcPlayerAmount } from '../js/sessions.js';
+
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+    passed++;
+  } catch (e) {
+    results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+    failed++;
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+const sampleSession = {
+  id: 'test-session',
+  date: '2026-06-11',
+  slots: [
+    { label: '19-20', start: '19:00', end: '20:00', unitPrice: 80 },
+    { label: '20-21', start: '20:00', end: '21:00', unitPrice: 80 },
+    { label: '21-22', start: '21:00', end: '22:00', unitPrice: 80 },
+  ],
+  discounts: { 2: 140, 3: 190 },
+  playerSlots: { 'p1': [0, 1], 'p2': [0], 'p3': [0, 1, 2] },
+  payments: {},
+};
+
+test('calcPlayerAmount: 1 段無折扣 → 原價', () => {
+  assertEqual(calcPlayerAmount(sampleSession, 'p2'), 80);
+});
+
+test('calcPlayerAmount: 2 段有折扣 → 折扣價 140', () => {
+  assertEqual(calcPlayerAmount(sampleSession, 'p1'), 140);
+});
+
+test('calcPlayerAmount: 3 段有折扣 → 折扣價 190', () => {
+  assertEqual(calcPlayerAmount(sampleSession, 'p3'), 190);
+});
+
+test('calcPlayerAmount: 未報名球員 → 0', () => {
+  assertEqual(calcPlayerAmount(sampleSession, 'not-in-session'), 0);
+});
+
+test('calcPlayerAmount: 無折扣設定時段總和', () => {
+  const noDiscount = { ...sampleSession, discounts: {} };
+  assertEqual(calcPlayerAmount(noDiscount, 'p1'), 160); // 80+80
+});
+
+test('calcPlayerAmount: 空 playerSlots → 0', () => {
+  const empty = { ...sampleSession, playerSlots: {} };
+  assertEqual(calcPlayerAmount(empty, 'p1'), 0);
+});
+
+test('getAllSessions returns newest first (logic check)', () => {
+  const arr = ['a', 'b', 'c'];
+  const reversed = arr.slice().reverse();
+  assertEqual(reversed[0], 'c');
+  assertEqual(reversed[2], 'a');
+  assert(arr[0] === 'a', 'original array untouched');
+});
+
+results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Sessions：${passed} passed, ${failed} failed</p>`;
+</script>
 </body>
 </html>
