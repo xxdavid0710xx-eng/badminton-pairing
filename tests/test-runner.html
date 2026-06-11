@@ -428,5 +428,90 @@ test('getAllSessions returns newest first (logic check)', () => {
 
 results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Sessions：${passed} passed, ${failed} failed</p>`;
 </script>
+
+<script type="module">
+import { buildWaitingQueue, applyManualOrder } from '../js/queue.js';
+
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+    passed++;
+  } catch (e) {
+    results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+    failed++;
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+const make = (id, games, pos = null) => ({
+  id, name: id, skillLevel: 5, gamesPlayed: games,
+  isPresent: true, pendingLeave: false,
+  lastGameEndTime: null, wins: 0, losses: 0,
+  manualQueuePosition: pos,
+});
+
+// ── buildWaitingQueue with manualQueuePosition ──
+
+test('queue v2: 有手動順序的排前面', () => {
+  const players = [make('a', 0, null), make('b', 0, 0)];
+  const q = buildWaitingQueue(players, []);
+  assertEqual(q[0].id, 'b');
+});
+
+test('queue v2: 多個手動順序依 pos 排', () => {
+  const players = [make('a', 0, null), make('b', 0, 2), make('c', 0, 0), make('d', 0, 1)];
+  const q = buildWaitingQueue(players, []);
+  assertEqual(q[0].id, 'c');
+  assertEqual(q[1].id, 'd');
+  assertEqual(q[2].id, 'b');
+  assertEqual(q[3].id, 'a');
+});
+
+test('queue v2: 無手動順序時仍依場數排', () => {
+  const players = [make('a', 3, null), make('b', 1, null)];
+  const q = buildWaitingQueue(players, []);
+  assertEqual(q[0].id, 'b');
+});
+
+test('queue v2: 混合手動與自動 — 手動排前面', () => {
+  const players = [make('a', 0, null), make('b', 0, null), make('c', 0, 1)];
+  const q = buildWaitingQueue(players, []);
+  assertEqual(q[0].id, 'c');
+});
+
+// ── applyManualOrder ──
+
+test('applyManualOrder: 依新順序設 pos', () => {
+  const players = [make('a', 0), make('b', 0), make('c', 0)];
+  const updated = applyManualOrder(players, ['c', 'a', 'b']);
+  const aPlayer = updated.find(p => p.id === 'a');
+  const bPlayer = updated.find(p => p.id === 'b');
+  const cPlayer = updated.find(p => p.id === 'c');
+  assertEqual(cPlayer.manualQueuePosition, 0);
+  assertEqual(aPlayer.manualQueuePosition, 1);
+  assertEqual(bPlayer.manualQueuePosition, 2);
+});
+
+test('applyManualOrder: 不在 orderedIds 的設為 null', () => {
+  const players = [make('a', 0), make('b', 0), make('c', 0)];
+  const updated = applyManualOrder(players, ['a', 'b']); // c not included
+  const cPlayer = updated.find(p => p.id === 'c');
+  assertEqual(cPlayer.manualQueuePosition, null);
+});
+
+test('applyManualOrder: 不修改原陣列', () => {
+  const players = [make('a', 0), make('b', 0)];
+  const original = players[0].manualQueuePosition;
+  applyManualOrder(players, ['b', 'a']);
+  assertEqual(players[0].manualQueuePosition, original); // original unchanged
+});
+
+results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Queue v2：${passed} passed, ${failed} failed</p>`;
+</script>
 </body>
 </html>
