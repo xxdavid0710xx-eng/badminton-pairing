@@ -18,6 +18,8 @@ function winRateStr(p) {
   return Math.round(p.wins / p.gamesPlayed * 100) + '%';
 }
 
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 let toastTimer = null;
 function showToast(msg) {
   let el = document.getElementById('toast');
@@ -88,7 +90,7 @@ function buildPlayerToken(p, team) {
     data-player-id="${p.id}" data-token-team="${team}">
     <div class="token-avatar ${cls}">
       <div class="token-lvl-badge">${p.skillLevel}</div>
-      <span class="token-name">${p.name}</span>
+      <span class="token-name">${esc(p.name)}</span>
       <span class="token-wr">${winRateStr(p)}</span>
     </div>
   </div>`;
@@ -196,7 +198,7 @@ function renderWaiting() {
     card.innerHTML = `
       <span class="waiting-card__drag">⠿</span>
       ${isNext ? '<div class="waiting-card__badge">下一場</div>' : ''}
-      <div class="waiting-card__name">${p.name}</div>
+      <div class="waiting-card__name">${esc(p.name)}</div>
       <div class="waiting-card__level">等級 ${p.skillLevel}</div>
       <div class="waiting-card__wr">${winRateStr(p)}</div>
       <div class="waiting-card__games">${p.gamesPlayed} 場</div>`;
@@ -313,7 +315,7 @@ function showBroadcast(announcements) {
   let idx = 0;
   function show(item) {
     courtEl.textContent   = `場地 ${item.courtId} — 上場`;
-    playersEl.innerHTML   = `${item.team1Names} <span class="broadcast-vs">vs</span> ${item.team2Names}`;
+    playersEl.innerHTML   = `${esc(item.team1Names)} <span class="broadcast-vs">vs</span> ${esc(item.team2Names)}`;
     statusEl.textContent  = '▶ 朗讀中…';
     banner.classList.remove('hidden');
   }
@@ -416,10 +418,376 @@ function startTimers() {
   }, 1000);
 }
 
-// ── Stub pages (implemented in Tasks 8-10) ────────────
-function renderPlayerDB() {}
-function renderPayment()  {}
-function renderHistory()  {}
+// ── Player Database ───────────────────────────────────
+function renderPlayerDB() {
+  const search  = (document.getElementById('db-search')?.value || '').toLowerCase();
+  const players = getAllPlayers().filter(p =>
+    !search || p.name.toLowerCase().includes(search)
+  );
+  const state      = getState();
+  const onCourtIds = getOnCourtIds(state);
+  const list       = document.getElementById('db-player-list');
+  if (!list) return;
+
+  list.innerHTML = players.length === 0
+    ? '<div class="empty-state">尚無球員</div>'
+    : '';
+
+  players.forEach(p => {
+    const onCourt    = onCourtIds.includes(p.id);
+    const avatarCls  = p.gender === 'F' ? 'db-avatar db-avatar--f' : 'db-avatar';
+    const allPlayers = getAllPlayers();
+    const partnerTags = (p.partners || []).map(id => {
+      const x = allPlayers.find(q => q.id === id);
+      return x ? `<span class="tag-partner">♥ ${esc(x.name)}</span>` : '';
+    }).join('');
+    const avoidTags = [
+      ...(p.avoidTeam || []).map(id => {
+        const x = allPlayers.find(q => q.id === id);
+        return x ? `<span class="tag-avoid">≠ ${esc(x.name)}</span>` : '';
+      }),
+      ...(p.avoidAll || []).map(id => {
+        const x = allPlayers.find(q => q.id === id);
+        return x ? `<span class="tag-avoid">✕ ${esc(x.name)}</span>` : '';
+      }),
+    ].join('');
+
+    const row = document.createElement('div');
+    row.className = 'db-player-row' + (p.isPresent ? ' present' : '');
+    row.innerHTML = `
+      <div class="${avatarCls}">${esc(p.name[0])}</div>
+      <div class="db-info">
+        <div class="db-name-row">
+          ${esc(p.name)}
+          <span class="player-row__level">${p.skillLevel}</span>
+          <span style="color:#f59e0b;font-size:11px;font-weight:600">${winRateStr(p)}</span>
+          ${p.isPresent ? '<span class="db-present-dot" title="今日出席"></span>' : ''}
+        </div>
+        <div class="db-meta">
+          <span>🎮 ${p.gamesPlayed} 場</span>
+          <span>🏆 ${p.wins}勝 ${p.losses}負</span>
+          <span>📅 ${p.lastGameEndTime ? new Date(p.lastGameEndTime).toLocaleDateString('zh-TW') : '無紀錄'}</span>
+        </div>
+        ${(partnerTags || avoidTags) ? `<div class="db-tags">${partnerTags}${avoidTags}</div>` : ''}
+      </div>
+      <div class="db-actions">
+        <button class="btn-icon btn-db-toggle" data-id="${p.id}" title="${p.isPresent ? '標記離場' : '標記出席'}" ${onCourt ? 'disabled' : ''}>
+          ${p.isPresent ? '🟢' : '⚪'}
+        </button>
+        <button class="btn-icon btn-db-constraint" data-id="${p.id}" title="配對設定">🔗</button>
+        <button class="btn-icon btn-db-delete" data-id="${p.id}" title="刪除" ${onCourt ? 'disabled' : ''}>🗑️</button>
+      </div>`;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.btn-db-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = getAllPlayers().find(x => x.id === btn.dataset.id);
+      if (!p) return;
+      setPresent(p.id, !p.isPresent);
+      renderPlayerDB();
+      if (currentPage === 'match') refresh();
+    });
+  });
+  list.querySelectorAll('.btn-db-constraint').forEach(btn => {
+    btn.addEventListener('click', () => openConstraintModal(btn.dataset.id));
+  });
+  list.querySelectorAll('.btn-db-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (confirm('確定刪除？')) { deletePlayer(btn.dataset.id); renderPlayerDB(); }
+    });
+  });
+}
+
+let constraintPlayerId = null;
+let constraintAvoidMode = 'avoidAll';
+
+function openConstraintModal(playerId) {
+  constraintPlayerId = playerId;
+  const p      = getAllPlayers().find(x => x.id === playerId);
+  if (!p) return;
+  const others = getAllPlayers().filter(x => x.id !== playerId);
+
+  document.getElementById('constraint-avatar').textContent = p.name[0];
+  document.getElementById('constraint-avatar').className   = p.gender === 'F' ? 'db-avatar db-avatar--f' : 'db-avatar';
+  document.getElementById('constraint-title').textContent  = `${p.name} 的配對設定`;
+  document.getElementById('constraint-sub').textContent    = `等級 ${p.skillLevel} · ${winRateStr(p)} · ${p.gamesPlayed} 場`;
+
+  const prefLabels  = { any: '不限', male: '♂♂ 男雙', female: '♀♀ 女雙', mixed: '♂♀ 混雙' };
+  const prefClasses = { any: '', male: '', female: 'active-green', mixed: 'active-purple' };
+
+  document.getElementById('constraint-body').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div class="section__title">性別</div>
+      <div class="pref-btn-group">
+        <button class="pref-btn ${p.gender === 'M' ? 'active' : ''}" data-gender="M">♂ 男</button>
+        <button class="pref-btn ${p.gender === 'F' ? 'active' : ''}" data-gender="F">♀ 女</button>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="section__title">打法偏好</div>
+      <div class="pref-btn-group">
+        ${Object.entries(prefLabels).map(([k, label]) =>
+          `<button class="pref-btn ${p.matchPreference === k ? ('active ' + (prefClasses[k] || '')) : ''}" data-pref="${k}">${label}</button>`
+        ).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:5px">人數不足時自動跳過，不強制配對</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="section__title" style="margin-bottom:4px">優先搭檔（希望同隊）</div>
+      <div class="player-pick-grid">
+        ${others.map(o => `
+          <button class="player-pick-btn ${(p.partners||[]).includes(o.id) ? 'selected-partner' : ''}" data-partner="${o.id}">
+            <div style="width:20px;height:20px;border-radius:50%;background:#1e293b;border:1.5px solid #475569;display:flex;align-items:center;justify-content:center;font-size:9px">${esc(o.name[0])}</div>
+            ${esc(o.name)}
+          </button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="section__title" style="margin-bottom:6px">迴避設定</div>
+      <div class="avoid-type-toggle">
+        <button class="avoid-type-btn ${constraintAvoidMode === 'avoidTeam' ? 'active' : ''}" data-avoid-type="avoidTeam">不同隊（可對打）</button>
+        <button class="avoid-type-btn ${constraintAvoidMode === 'avoidAll' ? 'active' : ''}" data-avoid-type="avoidAll">完全迴避（不同場）</button>
+      </div>
+      <div class="player-pick-grid" style="margin-top:8px">
+        ${others.map(o => {
+          const cls = (p.avoidAll||[]).includes(o.id) ? 'selected-avoid-all'
+                    : (p.avoidTeam||[]).includes(o.id) ? 'selected-avoid-team' : '';
+          return `<button class="player-pick-btn ${cls}" data-avoid="${o.id}">
+            <div style="width:20px;height:20px;border-radius:50%;background:#1e293b;border:1.5px solid #475569;display:flex;align-items:center;justify-content:center;font-size:9px">${esc(o.name[0])}</div>
+            ${esc(o.name)}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  document.querySelectorAll('#constraint-body [data-gender]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#constraint-body [data-gender]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.querySelectorAll('#constraint-body [data-pref]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#constraint-body [data-pref]').forEach(b =>
+        b.classList.remove('active','active-green','active-purple'));
+      btn.classList.add('active');
+      if (prefClasses[btn.dataset.pref]) btn.classList.add(prefClasses[btn.dataset.pref]);
+    });
+  });
+  document.querySelectorAll('.avoid-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      constraintAvoidMode = btn.dataset.avoidType;
+      document.querySelectorAll('.avoid-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.querySelectorAll('#constraint-body [data-partner]').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('selected-partner'));
+  });
+  document.querySelectorAll('#constraint-body [data-avoid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.remove('selected-avoid-team','selected-avoid-all');
+      if (constraintAvoidMode === 'avoidTeam') btn.classList.toggle('selected-avoid-team');
+      else btn.classList.toggle('selected-avoid-all');
+    });
+  });
+
+  document.getElementById('constraint-overlay').classList.remove('hidden');
+}
+
+function closeConstraintModal() {
+  document.getElementById('constraint-overlay').classList.add('hidden');
+  constraintPlayerId = null;
+}
+
+function saveConstraints() {
+  if (!constraintPlayerId) return;
+  const body     = document.getElementById('constraint-body');
+  const gender   = body.querySelector('[data-gender].active')?.dataset.gender || 'M';
+  const pref     = body.querySelector('[data-pref].active')?.dataset.pref || 'any';
+  const partners  = [...body.querySelectorAll('[data-partner].selected-partner')].map(b => b.dataset.partner);
+  const avoidTeam = [...body.querySelectorAll('[data-avoid].selected-avoid-team')].map(b => b.dataset.avoid);
+  const avoidAll  = [...body.querySelectorAll('[data-avoid].selected-avoid-all')].map(b => b.dataset.avoid);
+  updatePlayer(constraintPlayerId, { gender, matchPreference: pref, partners, avoidTeam, avoidAll });
+  closeConstraintModal();
+  renderPlayerDB();
+  showToast('配對設定已儲存');
+}
+
+// ── Payment Page ──────────────────────────────────────
+function renderPayment() {
+  const session = getOrCreateTodaySession();
+  const players = getAllPlayers().filter(p => p.isPresent);
+
+  const slotChips = document.getElementById('slot-chips');
+  slotChips.innerHTML = session.slots.map((s, i) => `
+    <div class="slot-chip">
+      <span class="slot-chip-time">${esc(s.start)}–${esc(s.end)}</span>
+      <span class="slot-chip-price">$${s.unitPrice}/人</span>
+      <button class="slot-chip-del" data-slot-idx="${i}">✕</button>
+    </div>`).join('') || '<span style="color:var(--text-muted);font-size:12px">尚未設定時段</span>';
+
+  slotChips.querySelectorAll('.slot-chip-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.slotIdx);
+      const newSlots = session.slots.filter((_, i) => i !== idx);
+      const newPlayerSlots = {};
+      for (const [pid, indices] of Object.entries(session.playerSlots)) {
+        newPlayerSlots[pid] = indices.filter(i => i !== idx).map(i => i > idx ? i - 1 : i);
+      }
+      updateSession(session.id, { slots: newSlots, playerSlots: newPlayerSlots });
+      recalcAllAmounts(session.id);
+      renderPayment();
+    });
+  });
+
+  document.getElementById('discount-2').value = session.discounts[2] ?? '';
+  document.getElementById('discount-3').value = session.discounts[3] ?? '';
+
+  const paid   = players.reduce((sum, p) => sum + (session.payments[p.id]?.paid ? (session.payments[p.id]?.amount || 0) : 0), 0);
+  const unpaid = players.reduce((sum, p) => sum + (!session.payments[p.id]?.paid ? (session.payments[p.id]?.amount || 0) : 0), 0);
+  document.getElementById('pay-summary').innerHTML = `
+    <div class="pay-summary-card"><div class="val">${players.length}</div><div class="lbl">出席人數</div></div>
+    <div class="pay-summary-card green"><div class="val">$${paid}</div><div class="lbl">已收款</div></div>
+    <div class="pay-summary-card red"><div class="val">$${unpaid}</div><div class="lbl">未收款</div></div>
+    <div class="pay-summary-card"><div class="val">$${paid + unpaid}</div><div class="lbl">合計</div></div>`;
+
+  const tbody = document.getElementById('pay-table-body');
+  tbody.innerHTML = '';
+
+  players.forEach(p => {
+    const selectedSlots = session.playerSlots[p.id] || [];
+    const payment       = session.payments[p.id];
+    const amount        = payment?.amount ?? 0;
+    const isPaid        = payment?.paid ?? false;
+    const row = document.createElement('div');
+    row.className = 'pay-table-row';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="db-avatar" style="width:28px;height:28px;font-size:11px">${esc(p.name[0])}</div>
+        <span>${esc(p.name)}</span>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${session.slots.map((s, i) =>
+          `<span class="slot-tag ${selectedSlots.includes(i) ? 'selected' : ''}" data-pid="${p.id}" data-slot="${i}">${esc(s.start.slice(0,5))}</span>`
+        ).join('')}
+      </div>
+      <div class="amount-val">$${amount}</div>
+      <div style="font-size:12px;color:var(--text-secondary)">${p.gamesPlayed} 場</div>
+      <div>
+        <span class="status-badge ${isPaid ? 'status-badge--paid' : 'status-badge--unpaid'}" data-pid="${p.id}">
+          ${isPaid ? '✓ 已付' : '✕ 未付'}
+        </span>
+      </div>`;
+    tbody.appendChild(row);
+  });
+
+  tbody.querySelectorAll('.slot-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const pid  = tag.dataset.pid;
+      const sidx = Number(tag.dataset.slot);
+      const cur  = (session.playerSlots[pid] || []).slice();
+      const i    = cur.indexOf(sidx);
+      if (i === -1) cur.push(sidx); else cur.splice(i, 1);
+      updateSession(session.id, { playerSlots: { ...session.playerSlots, [pid]: cur } });
+      recalcAllAmounts(session.id);
+      renderPayment();
+    });
+  });
+
+  tbody.querySelectorAll('.status-badge').forEach(badge => {
+    badge.addEventListener('click', () => {
+      const pid = badge.dataset.pid;
+      const cur = session.payments[pid] || { amount: 0, paid: false };
+      updateSession(session.id, { payments: { ...session.payments, [pid]: { ...cur, paid: !cur.paid } } });
+      renderPayment();
+    });
+  });
+}
+
+// ── History Page ──────────────────────────────────────
+function renderHistory() {
+  const sessions = getAllSessions();
+  const players  = getAllPlayers();
+  const games    = loadGames();
+  const list     = document.getElementById('history-list');
+  if (!list) return;
+
+  list.innerHTML = sessions.length === 0
+    ? '<div class="empty-state">尚無歷史紀錄</div>'
+    : '';
+
+  sessions.forEach(session => {
+    const sessionGames = games.filter(g =>
+      new Date(g.startTime).toISOString().slice(0, 10) === session.date
+    );
+    const attendees = Object.keys(session.playerSlots || {}).length ||
+      players.filter(p => p.lastGameEndTime &&
+        new Date(p.lastGameEndTime).toISOString().slice(0,10) === session.date
+      ).length;
+    const slotLabel = session.slots.length
+      ? `${session.slots[0].start}–${session.slots[session.slots.length-1].end}（${session.slots.length} 時段）`
+      : '未設定時段';
+
+    const getP = id => players.find(p => p.id === id) || { name: '?' };
+
+    const gameRows = sessionGames.map(g => {
+      if (!g.result || !g.team1 || !g.team2) return '';
+      const winner = g.result === 'team1' ? 1 : g.result === 'team2' ? 2 : 0;
+      return `<div class="game-record">
+        <span class="game-court-label">場地 ${g.courtId}</span>
+        <div class="game-teams">
+          <div style="display:flex;gap:4px">
+            ${g.team1.map(id => `<span class="game-player ${winner===1?'game-player--won':'game-player--lost'}">${esc(getP(id).name)}</span>`).join('')}
+          </div>
+          <span style="color:var(--text-muted);font-size:10px;font-weight:700">VS</span>
+          <div style="display:flex;gap:4px">
+            ${g.team2.map(id => `<span class="game-player ${winner===2?'game-player--won':'game-player--lost'}">${esc(getP(id).name)}</span>`).join('')}
+          </div>
+        </div>
+        <span style="font-size:10px;color:var(--text-muted)">${new Date(g.startTime).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span>
+      </div>`;
+    }).join('');
+
+    const payRows = Object.entries(session.payments || {}).map(([pid, pay]) => {
+      const p = players.find(x => x.id === pid);
+      if (!p) return '';
+      return `<div class="pay-chip">
+        <span style="color:var(--text-secondary)">${esc(p.name)}</span>
+        <span style="color:#34d399;font-weight:700">$${pay.amount}</span>
+        <span style="font-size:10px;color:${pay.paid?'#22c55e':'#f87171'}">${pay.paid?'✓ 已付':'未付'}</span>
+      </div>`;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'history-session';
+    card.innerHTML = `
+      <div class="session-header">
+        <span style="font-size:13px;font-weight:700">${esc(session.date)}</span>
+        <div class="session-meta">
+          <span>🏸 ${sessionGames.length} 場</span>
+          <span>👥 ${attendees} 人</span>
+          <span>⏱ ${esc(slotLabel)}</span>
+        </div>
+        <span style="color:var(--text-muted);font-size:12px">▶</span>
+      </div>
+      <div class="session-body" style="display:none">
+        ${gameRows || '<div style="padding:10px 14px;font-size:12px;color:var(--text-muted)">此日無完整場次紀錄</div>'}
+        ${payRows ? `<div class="session-payments">${payRows}</div>` : ''}
+      </div>`;
+
+    card.querySelector('.session-header').addEventListener('click', () => {
+      const body  = card.querySelector('.session-body');
+      const arrow = card.querySelector('.session-header span:last-child');
+      const open  = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent  = open ? '▶' : '▼';
+    });
+
+    list.appendChild(card);
+  });
+}
 
 // ── Init ──────────────────────────────────────────────
 function init() {
@@ -471,6 +839,49 @@ function init() {
   });
   document.getElementById('result-overlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeResultModal();
+  });
+
+  // Player DB
+  document.getElementById('db-search')?.addEventListener('input', renderPlayerDB);
+  document.getElementById('btn-add-regular')?.addEventListener('click', () => {
+    const name = prompt('新增常客姓名：');
+    if (!name?.trim()) return;
+    const lvl = Number(prompt('等級 (1-20)：', '10'));
+    if (!lvl || lvl < 1 || lvl > 20) return;
+    addPlayer(name.trim(), lvl, { isPresent: false });
+    renderPlayerDB();
+    showToast(`已新增：${name.trim()}`);
+  });
+
+  // Constraint modal
+  document.getElementById('constraint-close')?.addEventListener('click', closeConstraintModal);
+  document.getElementById('constraint-cancel')?.addEventListener('click', closeConstraintModal);
+  document.getElementById('constraint-save')?.addEventListener('click', saveConstraints);
+  document.getElementById('constraint-overlay')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeConstraintModal();
+  });
+
+  // Payment page
+  document.getElementById('btn-add-slot')?.addEventListener('click', () => {
+    const session = getOrCreateTodaySession();
+    const start = document.getElementById('slot-start').value;
+    const end   = document.getElementById('slot-end').value;
+    const price = Number(document.getElementById('slot-price').value);
+    if (!start || !end || !price) return;
+    updateSession(session.id, { slots: [...session.slots, { label: `${start}–${end}`, start, end, unitPrice: price }] });
+    renderPayment();
+  });
+  document.getElementById('btn-save-discounts')?.addEventListener('click', () => {
+    const session = getOrCreateTodaySession();
+    const d2 = Number(document.getElementById('discount-2').value);
+    const d3 = Number(document.getElementById('discount-3').value);
+    const discounts = {};
+    if (d2) discounts[2] = d2;
+    if (d3) discounts[3] = d3;
+    updateSession(session.id, { discounts });
+    recalcAllAmounts(session.id);
+    renderPayment();
+    showToast('折扣已儲存');
   });
 
   refresh();
