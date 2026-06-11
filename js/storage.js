@@ -3,6 +3,7 @@ const KEYS = {
   PLAYERS: 'bm_players',
   GAMES:   'bm_games',
   STATE:   'bm_state',
+  SESSIONS: 'bm_sessions',
 };
 
 export function loadPlayers() {
@@ -25,4 +26,11 @@ export function loadState() {
 }
 export function saveState(state) {
   localStorage.setItem(KEYS.STATE, JSON.stringify(state));
+}
+
+export function loadSessions() {
+  return JSON.parse(localStorage.getItem('bm_sessions') || '[]');
+}
+export function saveSessions(sessions) {
+  localStorage.setItem('bm_sessions', JSON.stringify(sessions));
 }

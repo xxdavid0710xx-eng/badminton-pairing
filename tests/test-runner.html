@@ -183,5 +183,88 @@
 
   results.innerHTML += `<p style="margin-top:16px;font-weight:bold">${passed} passed, ${failed} failed</p>`;
 </script>
+
+<script type="module">
+import { createPlayer, createSession } from '../js/data.js';
+
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+    passed++;
+  } catch (e) {
+    results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+    failed++;
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+// ── Data model v2 tests ──
+test('createPlayer v2: gender 預設 M', () => {
+  const p = createPlayer('測試', 10);
+  assertEqual(p.gender, 'M');
+});
+test('createPlayer v2: matchPreference 預設 any', () => {
+  const p = createPlayer('測試', 10);
+  assertEqual(p.matchPreference, 'any');
+});
+test('createPlayer v2: partners 是空陣列', () => {
+  const p = createPlayer('測試', 10);
+  assert(Array.isArray(p.partners), 'partners should be array');
+  assertEqual(p.partners.length, 0);
+});
+test('createPlayer v2: avoidTeam 是空陣列', () => {
+  const p = createPlayer('測試', 10);
+  assert(Array.isArray(p.avoidTeam), 'avoidTeam should be array');
+});
+test('createPlayer v2: avoidAll 是空陣列', () => {
+  const p = createPlayer('測試', 10);
+  assert(Array.isArray(p.avoidAll), 'avoidAll should be array');
+});
+test('createPlayer v2: manualQueuePosition 預設 null', () => {
+  const p = createPlayer('測試', 10);
+  assertEqual(p.manualQueuePosition, null);
+});
+test('createPlayer v2: 保留既有欄位', () => {
+  const p = createPlayer('測試', 10);
+  assertEqual(p.skillLevel, 10);
+  assertEqual(p.gamesPlayed, 0);
+  assertEqual(p.isPresent, false);
+  assert(typeof p.id === 'string', 'id should be string');
+});
+test('createSession: date 正確', () => {
+  const s = createSession('2026-06-11');
+  assertEqual(s.date, '2026-06-11');
+});
+test('createSession: slots 是空陣列', () => {
+  const s = createSession('2026-06-11');
+  assert(Array.isArray(s.slots), 'slots should be array');
+  assertEqual(s.slots.length, 0);
+});
+test('createSession: playerSlots 是物件', () => {
+  const s = createSession('2026-06-11');
+  assert(typeof s.playerSlots === 'object' && !Array.isArray(s.playerSlots), 'playerSlots should be object');
+});
+test('createSession: payments 是物件', () => {
+  const s = createSession('2026-06-11');
+  assert(typeof s.payments === 'object' && !Array.isArray(s.payments), 'payments should be object');
+});
+test('createSession: discounts 是物件', () => {
+  const s = createSession('2026-06-11');
+  assert(typeof s.discounts === 'object' && !Array.isArray(s.discounts), 'discounts should be object');
+});
+test('createSession: 有唯一 id', () => {
+  const s1 = createSession('2026-06-11');
+  const s2 = createSession('2026-06-11');
+  assert(typeof s1.id === 'string' && s1.id.length > 0, 'id should be non-empty string');
+  assert(s1.id !== s2.id, 'each session should have unique id');
+});
+
+results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">資料模型 v2：${passed} passed, ${failed} failed</p>`;
+</script>
 </body>
 </html>
