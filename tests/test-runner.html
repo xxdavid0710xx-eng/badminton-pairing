@@ -513,5 +513,123 @@ test('applyManualOrder: 不修改原陣列', () => {
 
 results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Queue v2：${passed} passed, ${failed} failed</p>`;
 </script>
+
+<script type="module">
+import { findBestMatch } from '../js/matching.js';
+
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+    passed++;
+  } catch (e) {
+    results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+    failed++;
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+const makeM = (id, lvl, opts = {}) => ({
+  id, name: id, skillLevel: lvl, gamesPlayed: 0, wins: 0, losses: 0,
+  gender: 'M', matchPreference: opts.pref || 'any',
+  partners: opts.partners || [], avoidTeam: opts.avoidTeam || [], avoidAll: opts.avoidAll || [],
+  isPresent: true, pendingLeave: false, lastGameEndTime: null, manualQueuePosition: null,
+});
+const makeF = (id, lvl, opts = {}) => ({ ...makeM(id, lvl, opts), gender: 'F' });
+
+// ── avoidAll 排除 ──
+test('avoidAll: a 迴避 b → 4 人中若只有 ab 可湊 → null', () => {
+  const a = makeM('a', 10, { avoidAll: ['b'] });
+  const b = makeM('b', 10);
+  const c = makeM('c', 10);
+  const d = makeM('d', 10);
+  assert(findBestMatch([a, b, c, d]) === null, 'should be null when all combos include a+b');
+});
+
+test('avoidAll: 有足夠其他人可湊場 → 不返回 null', () => {
+  const a = makeM('a', 10, { avoidAll: ['b'] });
+  const b = makeM('b', 10);
+  const c = makeM('c', 10);
+  const d = makeM('d', 10);
+  const e = makeM('e', 10);
+  const result = findBestMatch([a, b, c, d, e]);
+  assert(result !== null, 'should find a match excluding a+b combination');
+  const ids = [...result.team1, ...result.team2].map(p => p.id);
+  const bothInGame = ids.includes('a') && ids.includes('b');
+  assert(!bothInGame, 'a and b should not be in same game');
+});
+
+// ── avoidTeam 懲罰 ──
+test('avoidTeam: 不同隊懲罰不會封鎖配對', () => {
+  const a = makeM('a', 10, { avoidTeam: ['b'] });
+  const b = makeM('b', 10);
+  const c = makeM('c', 10);
+  const d = makeM('d', 10);
+  const result = findBestMatch([a, b, c, d]);
+  assert(result !== null, 'avoidTeam should not block match, only penalize');
+  // a and b should be on opposite teams
+  const aInT1 = result.team1.some(p => p.id === 'a');
+  const bInT1 = result.team1.some(p => p.id === 'b');
+  assert(!(aInT1 && bInT1), 'a and b should be on different teams due to avoidTeam penalty');
+});
+
+// ── partners 獎勵 ──
+test('partners: 優先搭檔傾向同隊', () => {
+  const a = makeM('a', 10, { partners: ['b'] });
+  const b = makeM('b', 10);
+  const c = makeM('c', 8);
+  const d = makeM('d', 8);
+  const result = findBestMatch([a, b, c, d]);
+  assert(result !== null, 'should find a match');
+  const aInT1 = result.team1.some(p => p.id === 'a');
+  const bInT1 = result.team1.some(p => p.id === 'b');
+  const aInT2 = result.team2.some(p => p.id === 'a');
+  const bInT2 = result.team2.some(p => p.id === 'b');
+  assert((aInT1 && bInT1) || (aInT2 && bInT2), 'a and b should prefer being on the same team');
+});
+
+// ── 性別偏好 ──
+test('matchPreference male: 需要 4 男，只有 2 男 2 女 → null', () => {
+  const players = [
+    makeM('m1', 10, { pref: 'male' }), makeM('m2', 10, { pref: 'male' }),
+    makeF('f1', 10), makeF('f2', 10),
+  ];
+  assert(findBestMatch(players) === null, 'male pref requires 4 males');
+});
+
+test('matchPreference female: 需要 4 女，只有 2 男 2 女 → null', () => {
+  const players = [
+    makeM('m1', 10), makeM('m2', 10),
+    makeF('f1', 10, { pref: 'female' }), makeF('f2', 10, { pref: 'female' }),
+  ];
+  assert(findBestMatch(players) === null, 'female pref requires 4 females');
+});
+
+test('matchPreference mixed: 需要 2男2女，2男2女 → 成功', () => {
+  const players = [
+    makeM('m1', 10, { pref: 'mixed' }), makeM('m2', 10, { pref: 'mixed' }),
+    makeF('f1', 10, { pref: 'mixed' }), makeF('f2', 10, { pref: 'mixed' }),
+  ];
+  const result = findBestMatch(players);
+  assert(result !== null, 'mixed pref with 2M+2F should succeed');
+  assertEqual(result.gameType, 'mixed');
+  // verify each team has 1M+1F
+  for (const team of [result.team1, result.team2]) {
+    const mCount = team.filter(p => p.gender === 'M').length;
+    assertEqual(mCount, 1);
+  }
+});
+
+test('matchPreference any: 全男也可配對', () => {
+  const players = [makeM('a',10), makeM('b',10), makeM('c',10), makeM('d',10)];
+  assert(findBestMatch(players) !== null, 'any pref always works');
+});
+
+results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Matching v2：${passed} passed, ${failed} failed</p>`;
+</script>
 </body>
 </html>
