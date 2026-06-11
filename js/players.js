@@ -49,6 +49,7 @@ export function setPresent(id, isPresent) {
   return updatePlayer(id, { isPresent });
 }
 
+// 若球員不在場上，立即設為 not present；若在場上，僅標記 pendingLeave（完場後由 game.js 處理）
 export function markLeave(id, onCourtIds) {
   if (onCourtIds.includes(id)) {
     return updatePlayer(id, { pendingLeave: true });
