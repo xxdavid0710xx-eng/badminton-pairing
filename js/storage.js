@@ -29,8 +29,8 @@ export function saveState(state) {
 }
 
 export function loadSessions() {
-  return JSON.parse(localStorage.getItem('bm_sessions') || '[]');
+  return JSON.parse(localStorage.getItem(KEYS.SESSIONS) || '[]');
 }
 export function saveSessions(sessions) {
-  localStorage.setItem('bm_sessions', JSON.stringify(sessions));
+  localStorage.setItem(KEYS.SESSIONS, JSON.stringify(sessions));
 }
