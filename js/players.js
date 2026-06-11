@@ -2,13 +2,29 @@
 import { loadPlayers, savePlayers } from './storage.js';
 import { createPlayer } from './data.js';
 
-export function getAllPlayers() {
-  return loadPlayers();
+function migratePlayer(p) {
+  return {
+    gender: 'M',
+    matchPreference: 'any',
+    partners: [],
+    avoidTeam: [],
+    avoidAll: [],
+    manualQueuePosition: null,
+    ...p,
+  };
 }
 
-export function addPlayer(name, skillLevel) {
+export function getAllPlayers() {
+  return loadPlayers().map(migratePlayer);
+}
+
+export function addPlayer(name, skillLevel, options = {}) {
   const players = loadPlayers();
-  const player = createPlayer(name.trim(), skillLevel);
+  const player = {
+    ...createPlayer(name.trim(), skillLevel),
+    isPresent: options.isPresent ?? false,
+    gender: options.gender ?? 'M',
+  };
   players.push(player);
   savePlayers(players);
   return player;
@@ -33,8 +49,6 @@ export function setPresent(id, isPresent) {
   return updatePlayer(id, { isPresent });
 }
 
-// 「下課」：若球員不在場上，立即設為 not present；
-// 若在場上，僅標記 pendingLeave（完場後由 game.js 處理）
 export function markLeave(id, onCourtIds) {
   if (onCourtIds.includes(id)) {
     return updatePlayer(id, { pendingLeave: true });

@@ -266,5 +266,98 @@ test('createSession: 有唯一 id', () => {
 
 results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">資料模型 v2：${passed} passed, ${failed} failed</p>`;
 </script>
+
+<script type="module">
+const results = document.getElementById('results');
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    results.innerHTML += `<p class="pass">✓ ${name}</p>`;
+    passed++;
+  } catch (e) {
+    results.innerHTML += `<p class="fail">✗ ${name}</p><pre>${e.message}</pre>`;
+    failed++;
+  }
+}
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b) { if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); }
+
+// migratePlayer logic (pure function test — no localStorage needed)
+function migratePlayer(p) {
+  return {
+    gender: 'M',
+    matchPreference: 'any',
+    partners: [],
+    avoidTeam: [],
+    avoidAll: [],
+    manualQueuePosition: null,
+    ...p,
+  };
+}
+
+test('migratePlayer: 補齊 gender 預設 M', () => {
+  const old = { id: 'x', name: '舊球員', skillLevel: 5, gamesPlayed: 3,
+                wins: 1, losses: 2, isPresent: false, pendingLeave: false,
+                lastGameEndTime: null };
+  const m = migratePlayer(old);
+  assertEqual(m.gender, 'M');
+});
+
+test('migratePlayer: 補齊 matchPreference 預設 any', () => {
+  const old = { id: 'x', name: '舊球員', skillLevel: 5, gamesPlayed: 0,
+                wins: 0, losses: 0, isPresent: false, pendingLeave: false,
+                lastGameEndTime: null };
+  const m = migratePlayer(old);
+  assertEqual(m.matchPreference, 'any');
+});
+
+test('migratePlayer: 補齊 partners 空陣列', () => {
+  const old = { id: 'x', name: '舊球員', skillLevel: 5, gamesPlayed: 0,
+                wins: 0, losses: 0, isPresent: false, pendingLeave: false,
+                lastGameEndTime: null };
+  const m = migratePlayer(old);
+  assert(Array.isArray(m.partners) && m.partners.length === 0, 'partners should be empty array');
+});
+
+test('migratePlayer: 補齊 manualQueuePosition null', () => {
+  const old = { id: 'x', name: '舊球員', skillLevel: 5, gamesPlayed: 0,
+                wins: 0, losses: 0, isPresent: false, pendingLeave: false,
+                lastGameEndTime: null };
+  const m = migratePlayer(old);
+  assertEqual(m.manualQueuePosition, null);
+});
+
+test('migratePlayer: 原本欄位不被覆蓋', () => {
+  const old = { id: 'x', name: '舊球員', skillLevel: 5, gamesPlayed: 3,
+                wins: 1, losses: 2, isPresent: true, pendingLeave: false,
+                lastGameEndTime: null };
+  const m = migratePlayer(old);
+  assertEqual(m.name, '舊球員');
+  assertEqual(m.skillLevel, 5);
+  assertEqual(m.gamesPlayed, 3);
+  assertEqual(m.isPresent, true);
+});
+
+test('migratePlayer: 已有 gender 欄位不被覆蓋', () => {
+  const existing = { id: 'x', name: '小美', skillLevel: 8, gamesPlayed: 0,
+                     wins: 0, losses: 0, isPresent: false, pendingLeave: false,
+                     lastGameEndTime: null, gender: 'F' };
+  const m = migratePlayer(existing);
+  assertEqual(m.gender, 'F');
+});
+
+test('migratePlayer: 已有 partners 不被覆蓋', () => {
+  const existing = { id: 'x', name: '小明', skillLevel: 10, gamesPlayed: 0,
+                     wins: 0, losses: 0, isPresent: false, pendingLeave: false,
+                     lastGameEndTime: null, partners: ['abc', 'def'] };
+  const m = migratePlayer(existing);
+  assertEqual(m.partners.length, 2);
+  assertEqual(m.partners[0], 'abc');
+});
+
+results.innerHTML += `<p style="margin-top:8px;font-weight:bold;color:#94a3b8">Player migration：${passed} passed, ${failed} failed</p>`;
+</script>
 </body>
 </html>
