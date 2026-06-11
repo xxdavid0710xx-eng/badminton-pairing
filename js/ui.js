@@ -111,8 +111,8 @@ function renderCourts() {
       const getP = id => players.find(p => p.id === id) || { name: '?', skillLevel: 0, gamesPlayed: 0, wins: 0 };
       const t1 = court.team1.map(getP);
       const t2 = court.team2.map(getP);
-      const avg1 = ((t1[0].skillLevel + t1[1].skillLevel) / 2).toFixed(1);
-      const avg2 = ((t2[0].skillLevel + t2[1].skillLevel) / 2).toFixed(1);
+      const avg1 = t1.length >= 2 ? ((t1[0].skillLevel + t1[1].skillLevel) / 2).toFixed(1) : t1.length === 1 ? String(t1[0].skillLevel) : '—';
+      const avg2 = t2.length >= 2 ? ((t2[0].skillLevel + t2[1].skillLevel) / 2).toFixed(1) : t2.length === 1 ? String(t2[0].skillLevel) : '—';
 
       const games   = loadGames();
       const game    = games.find(g => g.id === court.gameId);
@@ -196,7 +196,6 @@ function renderWaiting() {
     card.draggable = true;
     card.dataset.playerId = p.id;
     card.innerHTML = `
-      <span class="waiting-card__drag">⠿</span>
       ${isNext ? '<div class="waiting-card__badge">下一場</div>' : ''}
       <div class="waiting-card__name">${esc(p.name)}</div>
       <div class="waiting-card__level">等級 ${p.skillLevel}</div>
@@ -222,46 +221,28 @@ function initWaitingDragDrop() {
       card.style.opacity = '0.5';
     });
     card.addEventListener('dragend', () => card.style.opacity = '1');
-
-    card.addEventListener('dragover', e => {
-      e.preventDefault();
-      card.classList.add('waiting-card--drag-over');
-    });
-    card.addEventListener('dragleave', () => card.classList.remove('waiting-card--drag-over'));
-    card.addEventListener('drop', e => {
-      e.preventDefault();
-      card.classList.remove('waiting-card--drag-over');
-      if (!dragPayload || dragPayload.type !== 'waiting') return;
-      const fromId = dragPayload.playerId;
-      const toId   = card.dataset.playerId;
-      if (fromId === toId) return;
-
-      const players = getAllPlayers();
-      const state   = getState();
-      const onCourt = getOnCourtIds(state);
-      const queue   = buildWaitingQueue(players, onCourt);
-      const ids     = queue.map(p => p.id);
-      const fi = ids.indexOf(fromId), ti = ids.indexOf(toId);
-      if (fi === -1 || ti === -1) return;
-      ids.splice(fi, 1);
-      ids.splice(ti, 0, fromId);
-
-      const updated = applyManualOrder(players, ids);
-      savePlayers(updated);
-      refresh();
-    });
   });
 
-  // Drop on waiting area (from court token)
+  // Drop on waiting area (from court token — injury / substitution)
   list.addEventListener('dragover', e => e.preventDefault());
   list.addEventListener('drop', e => {
     e.preventDefault();
     if (!dragPayload || dragPayload.type !== 'court') return;
     const { playerId, courtId } = dragPayload;
-    endGame(courtId, 'draw');
-    setPresent(playerId, true);
+    // Remove only this player from their team; leave the rest of the game intact
+    const s     = getState();
+    const court = s.courts[courtId];
+    if (!court) return;
+    const newTeam1 = court.team1.filter(id => id !== playerId);
+    const newTeam2 = court.team2.filter(id => id !== playerId);
+    if (newTeam1.length === 0 && newTeam2.length === 0) {
+      delete s.courts[courtId];
+    } else {
+      s.courts[courtId] = { ...court, team1: newTeam1, team2: newTeam2 };
+    }
+    saveState(s);
     refresh();
-    showToast('球員已移回等待區（場次以平手結束）');
+    showToast('球員已移回等待區，可拖入替補球員');
   });
 }
 
